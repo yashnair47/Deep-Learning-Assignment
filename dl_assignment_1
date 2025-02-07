@@ -1,0 +1,85 @@
+import numpy as np
+from sklearn.datasets import load_iris
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import OneHotEncoder
+
+# Load and preprocess the dataset
+iris = load_iris()
+X = iris.data  # Features
+y = iris.target.reshape(-1, 1)  # Labels
+
+# One-hot encode the labels
+encoder = OneHotEncoder(sparse_output=False)
+y_onehot = encoder.fit_transform(y)
+
+# Split the dataset into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(X, y_onehot, test_size=0.2, random_state=42)
+
+# Define the neural network architecture
+input_size = 4
+hidden_size = 10
+output_size = 3
+learning_rate = 0.01
+epochs = 1000
+
+# Initialize weights and biases
+np.random.seed(42)
+W1 = np.random.randn(input_size, hidden_size)
+b1 = np.zeros((1, hidden_size))
+W2 = np.random.randn(hidden_size, output_size)
+b2 = np.zeros((1, output_size))
+
+# Activation functions
+def relu(x):
+    return np.maximum(0, x)
+
+def softmax(x):
+    exp_x = np.exp(x - np.max(x, axis=1, keepdims=True))
+    return exp_x / np.sum(exp_x, axis=1, keepdims=True)
+
+# Loss function
+def cross_entropy_loss(y_true, y_pred):
+    m = y_true.shape[0]
+    return -np.sum(y_true * np.log(y_pred + 1e-15)) / m
+
+# Training the neural network
+for epoch in range(epochs):
+    # Forward pass
+    z1 = np.dot(X_train, W1) + b1
+    a1 = relu(z1)
+    z2 = np.dot(a1, W2) + b2
+    a2 = softmax(z2)
+
+    # Compute loss
+    loss = cross_entropy_loss(y_train, a2)
+    if epoch % 100 == 0:
+        print(f"Epoch {epoch}, Loss: {loss}")
+
+    # Backpropagation
+    m = y_train.shape[0]
+    dz2 = a2 - y_train
+    dW2 = np.dot(a1.T, dz2) / m
+    db2 = np.sum(dz2, axis=0, keepdims=True) / m
+    dz1 = np.dot(dz2, W2.T) * (a1 > 0)
+    dW1 = np.dot(X_train.T, dz1) / m
+    db1 = np.sum(dz1, axis=0, keepdims=True) / m
+
+    # Update weights and biases
+    W2 -= learning_rate * dW2
+    b2 -= learning_rate * db2
+    W1 -= learning_rate * dW1
+    b1 -= learning_rate * db1
+
+# Testing the neural network
+z1_test = np.dot(X_test, W1) + b1
+a1_test = relu(z1_test)
+z2_test = np.dot(a1_test, W2) + b2
+a2_test = softmax(z2_test)
+
+# Convert predictions to class labels
+predictions = np.argmax(a2_test, axis=1)
+true_labels = np.argmax(y_test, axis=1)
+
+# Calculate accuracy
+accuracy = np.mean(predictions == true_labels)
+print(f"Test Accuracy: {accuracy * 100:.2f}%")
